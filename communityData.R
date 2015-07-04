@@ -1,4 +1,6 @@
 library(dplyr)
+library(reshape2)
+library(vegan)
 
 # Reconciling species names -----------------------------------------------
 
@@ -25,7 +27,33 @@ speciesList <- mutate(speciesList, phyName = phyName)
 
 # Organizing community data -----------------------------------------------
 
+# Three plot sizes: s/m/l
+# Abundance for all
+# Height for s & l
+
+# Full veg data
+vegData <- read.csv("Vegetation_Table_Complete.csv", header = T)
+vegData <- mutate(vegData, Plot_Size = tolower(Plot_Size), 
+                  Plot_ID = tolower(Plot_ID))
+vegData <- select(vegData, -Plot, -Large_Plot, -Plot_Type, -Plot_ID2)
+vegData <- mutate(vegData, Sample_ID = paste(SSU, Plot_ID, sep = "_"))
+
+# community data frames
+comm.abund <- select(vegData, Sample_ID, SSU, Plot_Size, Species, Abundance)
+comm.abund <- dcast(comm.abund, Sample_ID + SSU + Plot_Size ~ Species, 
+                    mean, fill = 0)
+
+comm.height <- select(vegData, Sample_ID, SSU, Plot_Size, Species, Height)
+comm.height <- dcast(comm.height, Sample_ID + SSU + Plot_Size ~ Species, 
+                    mean, fill = 0)
+
+# Site-level spp richness
+siteRichness <- select(vegData, SSU, Species)
+siteRichness <- dcast(siteRichness, SSU ~ Species)
+siteRichness <- specnumber(siteRichness[,-1])
 
 
 
-save(list = c("speciesList"), file = "communityData.RData")
+
+save(list = c("speciesList", "vegData", "comm.abund", 
+              "comm.height", "siteRichness"), file = "communityData.RData")
