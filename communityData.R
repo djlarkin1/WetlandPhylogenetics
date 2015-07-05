@@ -1,6 +1,8 @@
 library(dplyr)
 library(reshape2)
 library(vegan)
+library(picante)
+
 
 # Reconciling species names -----------------------------------------------
 
@@ -41,23 +43,61 @@ vegData <- mutate(vegData, Sample_ID = paste(SSU, Plot_ID, sep = "_"))
 vegData <- mutate(vegData, Species = gsub("[0-9]", "", vegData$Species))
 vegData <- mutate(vegData, phyName = speciesList$phyName[match(vegData$Species, speciesList$sppCode)])
 sort(unique(vegData$Species[is.na(vegData$phyName)]))
-# Need to add "Cir sp" to tree and species table
-
 
 # community data frames
 comm.abund <- select(vegData, Sample_ID, SSU, Plot_Size, phyName, Abundance)
 comm.abund <- dcast(comm.abund, Sample_ID + SSU + Plot_Size ~ phyName, 
                     mean, fill = 0)
+comm.abund <- comm.abund[, -which(colnames(comm.abund) == "NA")]
+comm.abund[is.na(comm.abund)] <- 0
+rownames(comm.abund) <- comm.abund$Sample_ID
 
 comm.height <- select(vegData, Sample_ID, SSU, Plot_Size, phyName, Height)
 comm.height <- dcast(comm.height, Sample_ID + SSU + Plot_Size ~ phyName, 
                     mean, fill = 0)
+rownames(comm.height) <- comm.height$Sample_ID
+comm.height <- comm.height[, -which(colnames(comm.height) == "NA")]
+comm.height[is.na(comm.height)] <- 0
+rownames(comm.height) <- comm.height$Sample_ID
 
 # Site-level spp richness
 siteRichness <- select(vegData, SSU, Species)
-siteRichness <- dcast(siteRichness, SSU ~ Species)
+siteRichness <- dcast(siteRichness, SSU ~ Species, length)
 siteRichness <- specnumber(siteRichness[,-1])
 
 
-save(list = c("speciesList", "vegData", "comm.abund", 
-              "comm.height", "siteRichness"), file = "communityData.RData")
+# Subsetting different plot sizes -----------------------------------------
+
+# Subset data by plot type
+# Drop missing species
+# Wisconsin-transform the data
+com.trans.fun <- function(df, x) {
+  y <- filter(df, Plot_Size == x)
+  drop.spp <- names(which(colSums(y[, -c(1:3)]) == 0))
+  y <- y[, -which(colnames(y) %in% drop.spp == T)]
+  y <- wisconsin(y[, -c(1:3)])
+}
+
+s.abund <- com.trans.fun(comm.abund, "s")
+m.abund <- com.trans.fun(comm.abund, "m")
+l.abund <- com.trans.fun(comm.abund, "l")
+s.height <- com.trans.fun(comm.height, "s")
+l.height <- com.trans.fun(comm.height, "l")
+
+
+# Matching comm data and phylogeny ----------------------------------------
+
+load("wetland.tre.RData")
+s.phy.abund <- match.phylo.comm(phy = wetland.tre, comm = s.abund)
+s.phy.height <- match.phylo.comm(phy = wetland.tre, comm = s.height)
+m.phy.abund <- match.phylo.comm(phy = wetland.tre, comm = m.abund)
+l.phy.abund <- match.phylo.comm(phy = wetland.tre, comm = l.abund)
+l.phy.height <- match.phylo.comm(phy = wetland.tre, comm = l.height)
+
+
+# Saving outputs ----------------------------------------------------------
+
+save(list = c("speciesList", "vegData", "comm.abund", "comm.height", 
+              "siteRichness", "s.phy.abund", "s.phy.height", "m.phy.abund",
+              "l.phy.abund", "l.phy.height"), 
+     file = "communityData.RData")
