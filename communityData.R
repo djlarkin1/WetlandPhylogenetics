@@ -37,22 +37,26 @@ vegData <- mutate(vegData, Plot_Size = tolower(Plot_Size),
                   Plot_ID = tolower(Plot_ID))
 vegData <- select(vegData, -Plot, -Large_Plot, -Plot_Type, -Plot_ID2)
 vegData <- mutate(vegData, Sample_ID = paste(SSU, Plot_ID, sep = "_"))
+# Reducing unidentified species to genus (e.g., "Car sp14" --> "Car sp")
+vegData <- mutate(vegData, Species = gsub("[0-9]", "", vegData$Species))
+vegData <- mutate(vegData, phyName = speciesList$phyName[match(vegData$Species, speciesList$sppCode)])
+sort(unique(vegData$Species[is.na(vegData$phyName)]))
+# Need to add "Cir sp" to tree and species table
+
 
 # community data frames
-comm.abund <- select(vegData, Sample_ID, SSU, Plot_Size, Species, Abundance)
-comm.abund <- dcast(comm.abund, Sample_ID + SSU + Plot_Size ~ Species, 
+comm.abund <- select(vegData, Sample_ID, SSU, Plot_Size, phyName, Abundance)
+comm.abund <- dcast(comm.abund, Sample_ID + SSU + Plot_Size ~ phyName, 
                     mean, fill = 0)
 
-comm.height <- select(vegData, Sample_ID, SSU, Plot_Size, Species, Height)
-comm.height <- dcast(comm.height, Sample_ID + SSU + Plot_Size ~ Species, 
+comm.height <- select(vegData, Sample_ID, SSU, Plot_Size, phyName, Height)
+comm.height <- dcast(comm.height, Sample_ID + SSU + Plot_Size ~ phyName, 
                     mean, fill = 0)
 
 # Site-level spp richness
 siteRichness <- select(vegData, SSU, Species)
 siteRichness <- dcast(siteRichness, SSU ~ Species)
 siteRichness <- specnumber(siteRichness[,-1])
-
-
 
 
 save(list = c("speciesList", "vegData", "comm.abund", 
