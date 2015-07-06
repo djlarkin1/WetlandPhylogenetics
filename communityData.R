@@ -70,11 +70,14 @@ siteRichness <- specnumber(siteRichness[,-1])
 
 # Subset data by plot type
 # Drop missing species
+# Set row names to sample IDs
 # Wisconsin-transform the data
 com.trans.fun <- function(df, x) {
   y <- filter(df, Plot_Size == x)
+  rowNames <- y$Sample_ID
   drop.spp <- names(which(colSums(y[, -c(1:3)]) == 0))
   y <- y[, -which(colnames(y) %in% drop.spp == T)]
+  rownames(y) <- rowNames
   y <- wisconsin(y[, -c(1:3)])
 }
 
@@ -86,8 +89,9 @@ l.height <- com.trans.fun(comm.height, "l")
 
 
 # Matching comm data and phylogeny ----------------------------------------
-
 load("wetland.tre.RData")
+
+# Plot-level data
 s.phy.abund <- match.phylo.comm(phy = wetland.tre, comm = s.abund)
 s.phy.height <- match.phylo.comm(phy = wetland.tre, comm = s.height)
 m.phy.abund <- match.phylo.comm(phy = wetland.tre, comm = m.abund)
@@ -95,9 +99,16 @@ l.phy.abund <- match.phylo.comm(phy = wetland.tre, comm = l.abund)
 l.phy.height <- match.phylo.comm(phy = wetland.tre, comm = l.height)
 
 
+# Plot x Site information -------------------------------------------------
+Site_Table <- read.csv("Site_Table.csv", header = T)
+Site_Table <- select(Site_Table, SSU, Type)
+plotsSites <- comm.abund[, c(1:3)]
+plotsSites <- left_join(plotsSites, Site_Table)
+
+
 # Saving outputs ----------------------------------------------------------
 
 save(list = c("speciesList", "vegData", "comm.abund", "comm.height", 
               "siteRichness", "s.phy.abund", "s.phy.height", "m.phy.abund",
-              "l.phy.abund", "l.phy.height"), 
+              "l.phy.abund", "l.phy.height", "plotsSites", "Site_Table"), 
      file = "communityData.RData")
